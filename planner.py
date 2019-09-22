@@ -81,7 +81,7 @@ class ProjectionNode(PlanNode):
     def __next__(self):
         next_row = next(self.children[0])
         if next_row is False:
-            return next_row
+            return False
         else:
             return self.projection_function(next_row)
 
@@ -102,7 +102,7 @@ class SelectionNode(PlanNode):
         next_row = next(self.children[0])
 
         if next_row is False:
-            return next_row
+            return False
 
         while not self.predicate_function(next_row):
             # print('[Select] predicate function not satisfied')
@@ -180,8 +180,12 @@ def create_query_plan(projection_function, predicate_function):
     return QueryPlan(projection_node)
 
 
-def project_first_and_last_name(row) -> str:
-    return f'name: {row["first_name"]} {row["last_name"]}'
+def project_first_and_last_name(row) -> typing.Tuple:
+    return (f'name: {row["first_name"]} {row["last_name"]}',)
+
+
+def project_more_fields(row) -> typing.Tuple:
+    return (row.get('first_name'), row.get('last_name'), row.get('country'))
 
 
 def predicate_if_id_eq_2(row) -> bool:
@@ -235,32 +239,32 @@ class TestPlanner(unittest.TestCase):
         selection_node = SelectionNode(predicate_generator('id', 'eq', '2'))
         selection_node.add_child(FileScanNode())
         projection_node.add_child(selection_node)
-        self.assertEqual(next(projection_node), 'name: Nancy Reagan')
+        self.assertEqual(next(projection_node), ('name: Nancy Reagan',))
         self.assertFalse(next(projection_node))
 
-        projection_node = ProjectionNode(project_first_and_last_name)
+        projection_node = ProjectionNode(project_more_fields)
         selection_node = SelectionNode(predicate_generator('id', 'gt', '1'))
         selection_node.add_child(FileScanNode())
         projection_node.add_child(selection_node)
-        self.assertEqual(next(projection_node), 'name: Nancy Reagan')
-        self.assertEqual(next(projection_node), 'name: Bruce Maslin')
+        self.assertEqual(next(projection_node), ('Nancy', 'Reagan', 'United States'))
+        self.assertEqual(next(projection_node), ('Bruce', 'Maslin', 'Australia'))
         self.assertFalse(next(projection_node))
 
     def test_query_plan(self):
-        query_plan = create_query_plan(project_first_and_last_name, predicate_generator('id', 'eq', '2'))
-        self.assertEqual(next(query_plan), 'name: Nancy Reagan')
+        query_plan = create_query_plan(project_more_fields, predicate_generator('id', 'eq', '1'))
+        self.assertEqual(next(query_plan), ('Bob', 'Long', 'United States'))
         self.assertFalse(next(query_plan))
 
         query_plan = create_query_plan(project_first_and_last_name, predicate_generator('first_name', 'not_eq', 'Coco'))
-        self.assertEqual(next(query_plan), 'name: Bob Long')
-        self.assertEqual(next(query_plan), 'name: Nancy Reagan')
-        self.assertEqual(next(query_plan), 'name: Bruce Maslin')
+        self.assertEqual(next(query_plan), ('name: Bob Long',))
+        self.assertEqual(next(query_plan), ('name: Nancy Reagan',))
+        self.assertEqual(next(query_plan), ('name: Bruce Maslin',))
         self.assertFalse(next(query_plan))
 
     def test_query_executor(self):
         query_plan = create_query_plan(project_first_and_last_name, predicate_generator('id', 'eq', '2'))
         executor = QueryExecutor(query_plan)
-        self.assertListEqual(list(executor.execute_query()), ['name: Nancy Reagan'])
+        self.assertListEqual(list(executor.execute_query()), [('name: Nancy Reagan',)])
 
         query_plan = create_query_plan(project_first_and_last_name, predicate_generator('id', 'eq', '5'))
         executor = QueryExecutor(query_plan)
@@ -268,4 +272,4 @@ class TestPlanner(unittest.TestCase):
 
         query_plan = create_query_plan(project_first_and_last_name, predicate_generator('id', 'gt', '1'))
         executor = QueryExecutor(query_plan)
-        self.assertListEqual(list(executor.execute_query()), ['name: Nancy Reagan', 'name: Bruce Maslin'])
+        self.assertListEqual(list(executor.execute_query()), [('name: Nancy Reagan',), ('name: Bruce Maslin',)])
