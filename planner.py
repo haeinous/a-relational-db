@@ -11,13 +11,20 @@ import typing
 import unittest
 
 
-def execute_query(query_plan):
+class QueryExecutor:
     """
-    Given a QueryPlan object, execute the query.
+    QueryExecutor
     """
-    for record in query_plan:
-        if record is not False:
-            yield record
+    def __init__(self, query_plan):
+        self.query_plan = query_plan
+
+    def execute_query(self):
+        """
+        Given a QueryPlan object, execute the query.
+        """
+        for record in self.query_plan:
+            if record is not False:
+                yield record
 
 
 class QueryPlan:
@@ -252,10 +259,13 @@ class TestPlanner(unittest.TestCase):
 
     def test_query_executor(self):
         query_plan = create_query_plan(project_first_and_last_name, predicate_generator('id', 'eq', '2'))
-        self.assertListEqual(list(execute_query(query_plan)), ['name: Nancy Reagan'])
+        executor = QueryExecutor(query_plan)
+        self.assertListEqual(list(executor.execute_query()), ['name: Nancy Reagan'])
 
         query_plan = create_query_plan(project_first_and_last_name, predicate_generator('id', 'eq', '5'))
-        self.assertListEqual(list(execute_query(query_plan)), [])
+        executor = QueryExecutor(query_plan)
+        self.assertListEqual(list(executor.execute_query()), [])
 
         query_plan = create_query_plan(project_first_and_last_name, predicate_generator('id', 'gt', '1'))
-        self.assertListEqual(list(execute_query(query_plan)), ['name: Nancy Reagan', 'name: Bruce Maslin'])
+        executor = QueryExecutor(query_plan)
+        self.assertListEqual(list(executor.execute_query()), ['name: Nancy Reagan', 'name: Bruce Maslin'])
