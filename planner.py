@@ -9,7 +9,7 @@ the next record for which the predicate function returns true whenever its own n
 import csv
 import typing
 import unittest
-
+from abc import ABC, abstractmethod
 
 class QueryExecutor:
     """
@@ -50,11 +50,12 @@ class QueryPlan:
             return next_record
 
 
-class PlanNode:
+class PlanNode(ABC):
     """
     Nodes that make up the query plan
     """
 
+    @abstractmethod
     def __init__(self):
         self.children = []
 
@@ -62,7 +63,7 @@ class PlanNode:
         self.children.append(child_node)
 
     def __repr__(self):
-        class_name = type(self)
+        class_name = str(type(self)).split('.')[-1]
         return f'[Node: {class_name}]'
 
 
